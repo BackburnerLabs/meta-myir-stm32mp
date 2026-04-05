@@ -62,7 +62,7 @@ include ${@oe.utils.ifelse(d.getVar('ST_ARCHIVER_ENABLE') == '1', 'linux-stm32mp
 # -------------------------------------------------------------
 # Defconfig
 #
-KERNEL_DEFCONFIG        = "myir_stm32mp135x_defconfig"
+KERNEL_DEFCONFIG        = "myd_stm32mp257x_defconfig"
 KERNEL_CONFIG_FRAGMENTS:arm = " \
     ${@bb.utils.contains('KERNEL_DEFCONFIG', 'defconfig', '${S}/arch/arm/configs/fragment-01-multiv7_cleanup.config', '', d)} \
     ${@bb.utils.contains('KERNEL_DEFCONFIG', 'defconfig', '${S}/arch/arm/configs/fragment-02-multiv7_addons.config', '', d)} \
