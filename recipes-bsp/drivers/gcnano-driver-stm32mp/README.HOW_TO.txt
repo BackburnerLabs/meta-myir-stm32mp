@@ -112,7 +112,7 @@ If not already done, extract the artifacts from Starter Package tarball, for exa
 
 Update Starter package with just compiled kernel module galcore.ko:
     #> mkdir -p <your_starter_package_dir_path>/rootfs_mounted
-    #> sudo mount -o loop <your_starter_package_dir_path>/images/stm32mp*/st-image-weston-openstlinux-weston-stm32mp*.ext4 <your_starter_package_dir_path>/rootfs_mounted
+    #> sudo mount -o loop <your_starter_package_dir_path>/images/stm32mp*/st-image-weston-openstlinux-weston-stm32mp*.splitted-rootfs.ext4 <your_starter_package_dir_path>/rootfs_mounted
     #> sudo mkdir -p <your_starter_package_dir_path>/rootfs_mounted/lib/modules/##KERNEL_VERSION##/updates
 
 Cleanup Starter Package from original gcnano kernel module artifacts first
@@ -136,13 +136,9 @@ Cleanup Starter Package from original gcnano kernel module artifacts first
     $ cd ..
     $@P> cd ##BP##-##PR##
     $@P> cd ##BP##
-
-    $@C> KERNEL_COMPONENT_VERSION=$(ls -1 ../../ | grep linux-stm32mp | head -n1)
-    $@C> KERNEL_BUILDDIR="../../$KERNEL_COMPONENT_VERSION/build"
-
-##CASE_stm32mp1##    $@C> make SOC_PLATFORM=st-mp1 DEBUG=0 O="../../$KERNEL_COMPONENT_VERSION/build" M="${PWD}" AQROOT="${PWD}" -C ${KERNEL_BUILDDIR}
-##CASE_stm32mp2##    $@C> make SOC_PLATFORM=st-mp2 DEBUG=0 O="../../$KERNEL_COMPONENT_VERSION/build" M="${PWD}" AQROOT="${PWD}" -C ${KERNEL_BUILDDIR}
-##CASE_stm32mp2-m33td##    $@C> make SOC_PLATFORM=st-mp2 DEBUG=0 O="../../$KERNEL_COMPONENT_VERSION/build" M="${PWD}" AQROOT="${PWD}" -C ${KERNEL_BUILDDIR}
+##CASE_stm32mp1##    $@C> make SOC_PLATFORM=st-mp1 DEBUG=0 O="${KERNEL_BUILDDIR}" M="${PWD}" AQROOT="${PWD}" -C ${KERNEL_BUILDDIR}
+##CASE_stm32mp2##    $@C> make SOC_PLATFORM=st-mp2 DEBUG=0 O="${KERNEL_BUILDDIR}" M="${PWD}" AQROOT="${PWD}" -C ${KERNEL_BUILDDIR}
+##CASE_stm32mp2-m33td##    $@C> make SOC_PLATFORM=st-mp2 DEBUG=0 O="${KERNEL_BUILDDIR}" M="${PWD}" AQROOT="${PWD}" -C ${KERNEL_BUILDDIR}
 
     To strip the kernel modules (Optionally):
     @> find . -name "*.ko" | xargs $STRIP --strip-debug --remove-section=.comment --remove-section=.note --preserve-dates galcore.ko
