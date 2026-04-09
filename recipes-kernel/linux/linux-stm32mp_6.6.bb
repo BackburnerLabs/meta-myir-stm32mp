@@ -72,7 +72,6 @@ KERNEL_CONFIG_FRAGMENTS:append:stm32mp1common = " ${@oe.utils.ifelse(d.getVar('K
 KERNEL_CONFIG_FRAGMENTS:append:stm32mp1common = " ${@bb.utils.contains('MACHINE_FEATURES', 'nosmp', '${WORKDIR}/fragments/features/${LINUX_VERSION}/optional-fragment-06-nosmp.config', '', d)} "
 KERNEL_CONFIG_FRAGMENTS:append:stm32mp1common = " ${@bb.utils.contains('MACHINE_FEATURES', 'efi', '${WORKDIR}/fragments/features/${LINUX_VERSION}/optional-fragment-07-efi.config', '', d)} "
 
-KERNEL_DEFCONFIG        = "defconfig"
 KERNEL_CONFIG_FRAGMENTS:arm = " \
     ${@bb.utils.contains('KERNEL_DEFCONFIG', 'defconfig', '${S}/arch/arm/configs/fragment-01-multiv7_cleanup.config', '', d)} \
     ${@bb.utils.contains('KERNEL_DEFCONFIG', 'defconfig', '${S}/arch/arm/configs/fragment-02-multiv7_addons.config', '', d)} \
