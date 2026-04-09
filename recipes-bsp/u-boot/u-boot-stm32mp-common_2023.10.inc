@@ -35,9 +35,13 @@ SRC_URI += "${@bb.utils.contains('UBOOT_SIGN_ENABLE', '1', 'file://fragment-02-s
 # efi config
 SRC_URI += "${@bb.utils.contains('MACHINE_FEATURES', 'efi', 'file://fragment-03-efi.cfg;subdir=fragments/features', '', d)}"
 
+# M33TD: no splashscreen
+SRC_URI += "${@bb.utils.contains('MACHINE_FEATURES', 'm33td', 'file://fragment-06-m33td-no-splashscreen.cfg;subdir=fragments/features', '', d)}"
+
+
 U_BOOT_VERSION = "v2023.10"
 U_BOOT_SUBVERSION = "stm32mp"
-U_BOOT_RELEASE = "r1"
+U_BOOT_RELEASE = "r3"
 
 PV = "${U_BOOT_VERSION}-${U_BOOT_SUBVERSION}-${U_BOOT_RELEASE}"
 

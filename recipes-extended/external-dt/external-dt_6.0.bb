@@ -9,7 +9,9 @@ SRCREV = "662f74465252402fc9e874bdfda9ab9648afc72a"
 S = "${WORKDIR}/git"
 
 EXT_DT_VERSION = "v6.0"
-EXT_DT_RELEASE = "stm32mp-r1"
+EXT_DT_RELEASE = "stm32mp-r3"
+
+PV = "${EXT_DT_VERSION}-${EXT_DT_RELEASE}"
 
 COMPATIBLE_MACHINE = "(stm32mpcommon)"
 

@@ -9,7 +9,7 @@ Bitbake and OpenEmbedded-Core layers or Poky layer all part of the Yocto Project
 The Yocto Project has extensive documentation about OE including a reference manual
 which can be found at:
 
- * **http://yoctoproject.org/documentation**
+ * **https://docs.yoctoproject.org/**
 
 For information about OpenEmbedded, see the OpenEmbedded website:
 
@@ -62,7 +62,7 @@ If you do not accept the EULA the generated image will be missing some
 components and features.
 
 ## Contributing
-If you want to contribute changes, you can send Github pull requests at
+If you want to contribute changes by proposing a patch, you can send Github pull requests at
 **https://github.com/stmicroelectronics/meta-st-stm32mp/pulls**.
 
 

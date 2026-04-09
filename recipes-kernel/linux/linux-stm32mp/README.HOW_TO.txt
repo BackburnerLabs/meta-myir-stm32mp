@@ -193,7 +193,7 @@ inside the dedicated build directory).
     * Build kernel images ([uImage|Image.gz] and vmlinux) and device tree (dtbs)
     $> [ "${ARCH}" = "arm" ] && imgtarget="uImage" || imgtarget="Image.gz"
     $> export IMAGE_KERNEL=${imgtarget}
-    $> make ${IMAGE_KERNEL} vmlinux dtbs LOADADDR=0xC2000040 O="${OUTPUT_BUILD_DIR}"
+    $> make ${IMAGE_KERNEL} vmlinux dtbs LOADADDR=##LOADADDR## O="${OUTPUT_BUILD_DIR}"
     * Build kernel module
     $> make modules O="${OUTPUT_BUILD_DIR}"
     * Generate output build artifacts
@@ -383,7 +383,7 @@ If not already done, extract the artifacts from Starter Package tarball, for exa
 Update Starter Package bootfs with new generated dtb and uImage or Image.gz
 * kernel + devicetree:
     #> mkdir -p <your_starter_package_dir_path>/bootfs_mounted
-    #> sudo mount -o loop <your_starter_package_dir_path>/images/stm32mp*/st-image-bootfs-openstlinux-weston-stm32mp*.ext4 <your_starter_package_dir_path>/bootfs_mounted
+    #> sudo mount -o loop <your_starter_package_dir_path>/images/stm32mp*/st-image-weston-openstlinux-weston-stm32mp*.splitted-bootfs.ext4 <your_starter_package_dir_path>/bootfs_mounted
     #> sudo cp -vf ${OUTPUT_BUILD_DIR}/install_artifact/boot/${IMAGE_KERNEL}  <your_starter_package_dir_path>/bootfs_mounted/
     #> sudo cp -vf ${OUTPUT_BUILD_DIR}/install_artifact/boot/st*.dtb <your_starter_package_dir_path>/bootfs_mounted/
     #> sudo umount <your_starter_package_dir_path>/bootfs_mounted
@@ -395,7 +395,75 @@ Update Starter Package bootfs with new generated dtb and uImage or Image.gz
     #> find . -name "*.ko" | xargs $STRIP --strip-debug --remove-section=.comment --remove-section=.note --preserve-dates
 
     #> mkdir -p <your_starter_package_dir_path>/rootfs_mounted
-    #> sudo mount -o loop <your_starter_package_dir_path>/images/stm32mp*/st-image-weston-openstlinux-weston-stm32mp*.ext4 <your_starter_package_dir_path>/rootfs_mounted
+    #> sudo mount -o loop <your_starter_package_dir_path>/images/stm32mp*/st-image-weston-openstlinux-weston-stm32mp*.splitted-rootfs.ext4 <your_starter_package_dir_path>/rootfs_mounted
     #> sudo cp -rvf ${OUTPUT_BUILD_DIR}/install_artifact/lib/modules/*  <your_starter_package_dir_path>/rootfs_mounted/lib/modules
     #> sudo umount <your_starter_package_dir_path>/rootfs_mounted
     #> rmdir <your_starter_package_dir_path>/rootfs_mounted
+
+
+----------------------------
+9. Example of compilation usage
+----------------------------
+    $@E> cd ##BP##-##PR##
+    $@E> tar xf ##LINUX_TARNAME##
+    $@E> cd  ##LINUX_TARBASE##
+    $@E> for p in `ls -1 ../*.patch`; do patch -p1 < $p; done
+    $@E> echo "" > .scmversion
+    $@S> export KERNEL_BUILDDIR=$(readlink -e <your_build_subdir_path>)
+    $ cd ..
+    $ cd ..
+    $@P> cd ##BP##-##PR##
+    $@P> cd ##LINUX_TARBASE##
+
+    $@c> export OUTPUT_BUILD_DIR=<your_build_subdir_path>
+    $@c> mkdir -p $OUTPUT_BUILD_DIR
+    $@c> echo "" > $OUTPUT_BUILD_DIR/.scmversion
+
+##CASE_stm32mp1##    $@c> make O="${OUTPUT_BUILD_DIR}" multi_v7_defconfig fragment*.config
+##CASE_stm32mp2##    $@c> make O="${OUTPUT_BUILD_DIR}" defconfig fragment*.config
+##CASE_stm32mp2-m33td##    $@c> make O="${OUTPUT_BUILD_DIR}" defconfig fragment*.config
+
+    $@c> for f in `ls -1 ../fragment*.config`; do scripts/kconfig/merge_config.sh -m -r -O ${OUTPUT_BUILD_DIR} ${OUTPUT_BUILD_DIR}/.config $f; done
+    $@c> (yes '' || true) | make oldconfig O="${OUTPUT_BUILD_DIR}"
+
+    $@C> export OUTPUT_BUILD_DIR=<your_build_subdir_path>
+    $@MC> make O="${OUTPUT_BUILD_DIR}" ${PARALLEL_MAKE} menuconfig
+##CASE_stm32mp1##    $@CI> make O="${OUTPUT_BUILD_DIR}" ${PARALLEL_MAKE} uImage vmlinux dtbs LOADADDR=##LOADADDR## KBUILD_EXTDTS=<externaldt_path>/<externaldt_linux_path>
+##CASE_stm32mp2##    $@CI> make O="${OUTPUT_BUILD_DIR}" ${PARALLEL_MAKE} Image.gz vmlinux dtbs KBUILD_EXTDTS=<externaldt_path>/<externaldt_linux_path>
+##CASE_stm32mp2-m33td##    $@CI> make O="${OUTPUT_BUILD_DIR}" ${PARALLEL_MAKE} Image.gz vmlinux dtbs KBUILD_EXTDTS=<externaldt_path>/<externaldt_linux_path>
+    $@CM> make O="${OUTPUT_BUILD_DIR}" ${PARALLEL_MAKE} modules
+    $@CM> make O="${OUTPUT_BUILD_DIR}" ${PARALLEL_MAKE} INSTALL_MOD_PATH="${OUTPUT_BUILD_DIR}/install_artifact" modules_install
+    $@CI> mkdir -p ${OUTPUT_BUILD_DIR}/install_artifact/boot/
+
+##CASE_stm32mp1##    $@CI> cp ${OUTPUT_BUILD_DIR}/arch/arm/boot/uImage ${OUTPUT_BUILD_DIR}/install_artifact/boot/
+##CASE_stm32mp1##    $@C> find ${OUTPUT_BUILD_DIR}/arch/arm/boot/dts/ -name 'st*.dtb' -exec cp '{}' ${OUTPUT_BUILD_DIR}/install_artifact/boot/ \;
+##CASE_stm32mp2##    $@CI> cp ${OUTPUT_BUILD_DIR}/arch/arm64/boot/Image.gz ${OUTPUT_BUILD_DIR}/install_artifact/boot/
+##CASE_stm32mp2##    $@C> find ${OUTPUT_BUILD_DIR}/arch/arm64/boot/dts/ -name 'st*.dtb' -exec cp '{}' ${OUTPUT_BUILD_DIR}/install_artifact/boot/ \;
+##CASE_stm32mp2-m33td##    $@CI> cp ${OUTPUT_BUILD_DIR}/arch/arm64/boot/Image.gz ${OUTPUT_BUILD_DIR}/install_artifact/boot/
+##CASE_stm32mp2-m33td##    $@C> find ${OUTPUT_BUILD_DIR}/arch/arm64/boot/dts/ -name 'st*.dtb' -exec cp '{}' ${OUTPUT_BUILD_DIR}/install_artifact/boot/ \;
+    To strip the kernel modules (Optionally):
+    @> cd ${OUTPUT_BUILD_DIR}/install_artifact
+    @> find . -name "*.ko" | xargs $STRIP --strip-debug --remove-section=.comment --remove-section=.note --preserve-dates
+
+# to deploy
+   $@F> export FIP_DEPLOYDIR_ROOT=<your_deploy_dir_path>
+   $@F> export OUTPUT_BUILD_DIR=<your_build_subdir_path>
+
+   $@F> mkdir -p ${FIP_DEPLOYDIR_ROOT}/kernel
+##CASE_stm32mp1##    $@F> cp ${OUTPUT_BUILD_DIR}/install_artifact/boot/uImage ${FIP_DEPLOYDIR_ROOT}/kernel
+##CASE_stm32mp1##    $@F> cp ${OUTPUT_BUILD_DIR}/install_artifact/boot/*.dtb  ${FIP_DEPLOYDIR_ROOT}/kernel
+##CASE_stm32mp1##    $@F> cp ${OUTPUT_BUILD_DIR}/.config  ${FIP_DEPLOYDIR_ROOT}/kernel/config
+##CASE_stm32mp2##    $@F> cp ${OUTPUT_BUILD_DIR}/install_artifact/boot/Image.gz ${FIP_DEPLOYDIR_ROOT}/kernel
+##CASE_stm32mp2##    $@F> cp ${OUTPUT_BUILD_DIR}/install_artifact/boot/*.dtb    ${FIP_DEPLOYDIR_ROOT}/kernel
+##CASE_stm32mp2##    $@F> cp ${OUTPUT_BUILD_DIR}/.config  ${FIP_DEPLOYDIR_ROOT}/kernel/config
+##CASE_stm32mp2-m33td##    $@F> cp ${OUTPUT_BUILD_DIR}/install_artifact/boot/Image.gz ${FIP_DEPLOYDIR_ROOT}/kernel
+##CASE_stm32mp2-m33td##    $@F> cp ${OUTPUT_BUILD_DIR}/install_artifact/boot/*.dtb    ${FIP_DEPLOYDIR_ROOT}/kernel
+##CASE_stm32mp2-m33td##    $@F> cp ${OUTPUT_BUILD_DIR}/.config  ${FIP_DEPLOYDIR_ROOT}/kernel/config
+
+   $@F> mkdir -p ${FIP_DEPLOYDIR_ROOT}/kernel/modules
+   $@F> mkdir -p ${FIP_DEPLOYDIR_ROOT}/kernel/modules_stripped
+   # cleanup kernel modules tree
+   $@F> rm ${OUTPUT_BUILD_DIR}/install_artifact/lib/modules/*/build; echo ""
+   $@F> cp -ar ${OUTPUT_BUILD_DIR}/install_artifact/* ${FIP_DEPLOYDIR_ROOT}/kernel/modules
+   $@F> cp -ar ${OUTPUT_BUILD_DIR}/install_artifact/* ${FIP_DEPLOYDIR_ROOT}/kernel/modules_stripped
+   $@F> find ${FIP_DEPLOYDIR_ROOT}/kernel/modules_stripped -name "*.ko" | xargs $STRIP --strip-debug --remove-section=.comment --remove-section=.note --preserve-dates

@@ -3,12 +3,20 @@
 # Make sure to provide all expected tools in SDK
 ST_TOOLS_FOR_SDK = " \
     nativesdk-gcc-arm-none-eabi \
+    nativesdk-gcc-arm-none-eabi-staticdev \
     nativesdk-binutils \
     nativesdk-openocd-stm32mp \
     nativesdk-stm32wrapper4dbg \
     nativesdk-sdcard-raw-tools \
     nativesdk-ncurses-libncursesw \
     nativesdk-perf \
+    nativesdk-gdb-stm32mp-addons \
+    "
+
+# for TF-A on aarch64
+ST_TOOLS_FOR_SDK:append:aarch64 = " \
+    nativesdk-gcc-aarch64-none-elf \
+    nativesdk-gcc-aarch64-none-elf-staticdev \
     "
 
 # Add tools to build native application with SDK
@@ -35,13 +43,14 @@ ST_TOOLS_FOR_SDK_PERL:append = " \
 
 ST_TOOLS_FOR_SDK:append = " ${ST_TOOLS_FOR_SDK_PERL} "
 
-# For support of python module for u-boot
+# For support of python module and tools for u-boot
 ST_TOOLS_FOR_SDK:append = " \
     nativesdk-python3-dev \
     nativesdk-python3-setuptools \
     nativesdk-swig \
     nativesdk-dtc \
     nativesdk-flex \
+    nativesdk-gnutls \
     "
 
 # For support of python module for optee-os
@@ -57,7 +66,14 @@ ST_TOOLS_FOR_SDK:append = " \
 # For support of python module for tf-m
 ST_TOOLS_FOR_SDK:append = " \
     nativesdk-python3-pyyaml \
+    nativesdk-python3-cbor2 \
+    nativesdk-python3-click \
+    nativesdk-python3-pyasn1 \
+    nativesdk-python3-imgtool \
+    nativesdk-python3-jinja2 \
+    nativesdk-python3-pyelftools \
     nativesdk-ninja \
+    nativesdk-python3-pycryptodomex \
 "
 
 # For support of string convertion (iconv) in SDK
@@ -90,6 +106,12 @@ ST_TOOLS_FOR_SDK:append = " \
 ST_TOOLS_FOR_SDK:append = " \
     nativesdk-tf-a-tools \
     nativesdk-u-boot-tools-stm32mp \
+    "
+
+# M33 firmware generation
+ST_TOOLS_FOR_SDK:append:stm32mp2common = " \
+    nativesdk-tf-m-stm32mp-scripts \
+    nativesdk-tf-m-sdk \
     "
 
 # for igt-gpu-tools
@@ -128,6 +150,29 @@ ST_TOOLS_FOR_TARGET_SDK = " \
     kernel-headers \
     "
 
-
 TOOLCHAIN_TARGET_TASK += " bash-dev libgomp-dev ${ST_TOOLS_FOR_TARGET_SDK}"
 TOOLCHAIN_TARGET_TASK:remove:pn-buildtools-tarball = " bash-dev libgomp-dev ${ST_TOOLS_FOR_TARGET_SDK}"
+
+
+# multilib and aarch32
+TOOLCHAIN_HOST_TASK:remove:stm32mp2aarch32common = "packagegroup-cross-canadian-${MACHINE}"
+MULTILIB_ST_AARCH32 = " \
+    binutils-cross-canadian-arm \
+    gcc-cross-canadian-arm \
+    gdb-cross-canadian-arm \
+    meta-environment-${MACHINE} \
+    lib64-optee-os-stm32mp-dev \
+    lib64-optee-os-stm32mp-dev-sdk \
+    "
+TOOLCHAIN_HOST_TASK:append:stm32mp2aarch32common = " ${MULTILIB_ST_AARCH32} "
+
+MULTILIB_ST_STM32MP1 = " \
+    optee-os-stm32mp-dev \
+    "
+TOOLCHAIN_TARGET_TASK:append:stm32mp1common = " ${MULTILIB_ST_STM32MP1} "
+
+
+
+MACHINE_EXTRA_RRECOMMENDS:append = " \
+    ${@bb.utils.contains('ST_ARCHIVER_ENABLE', '1', 'sdk-infos', '', d)} \
+"

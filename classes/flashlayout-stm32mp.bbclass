@@ -114,9 +114,13 @@ FLASHLAYOUT_DESTDIR = "${FLASHLAYOUT_TOPDIR}/${FLASHLAYOUT_SUBDIR}"
 # Init bootscheme and config labels
 FLASHLAYOUT_BOOTSCHEME_LABELS ??= ""
 FLASHLAYOUT_CONFIG_LABELS ??= ""
+
+# Default init the FLASHLAYOUT_COUNT_LABELS to consider the flashlayout files created
+FLASHLAYOUT_COUNT_LABELS = "${FLASHLAYOUT_BOOTSCHEME_LABELS}"
+
 # Init partition and type labels
 #   Note: possible override with bootscheme and/or config
-FLASHLAYOUT_PARTITION_LABELS   ??= ""
+FLASHLAYOUT_PARTITION_LABELS ??= ""
 FLASHLAYOUT_TYPE_LABELS ??= ""
 # Init flashlayout partition vars
 #   Note: possible override with bootscheme and/or config and/or partition
@@ -169,6 +173,7 @@ python __anonymous () {
             if task == 'do_image_complete':
                 # Init current image name
                 current_image_name = d.getVar('PN') or ""
+                current_image_distro_name = "{}-{}".format(current_image_name, d.getVar('DISTRO') or "")
                 # Init RAMFS image if any
                 initramfs = d.getVar('INITRAMFS_IMAGE') or ""
                 # Init INITRD image if any
@@ -187,16 +192,16 @@ python __anonymous () {
                             if config == f:
                                 items = v.split(',')
                                 # Make sure about PARTITIONS_IMAGES contents
-                                if len(items) > 0 and len(items) != 5:
-                                        bb.fatal('[PARTITIONS_IMAGES] Only image,label,mountpoint,size,type can be specified!')
+                                if len(items) > 0 and len(items) > 7 :
+                                        bb.fatal('[FLASH PARTITIONS_IMAGES] Only image,label,mountpoint,size,type,[copy] can be specified!')
                                 # Make sure that we're dealing with partition image and not rootfs image
-                                if items[2] != '':
+                                if items[2] == '':
                                     # Mount point is available, so we're dealing with partition image
                                     # Append image to image_partitions list
                                     image_partitions.append(d.expand(items[0]))
-                                break
+                                    break
                 # We need to clearly identify ROOTFS build, not InitRAMFS/initRD one (if any), not partition one either
-                if current_image_name not in image_partitions and current_image_name != initramfs and current_image_name not in initrd:
+                if (current_image_name in image_partitions or current_image_distro_name in image_partitions) and current_image_name != initramfs and current_image_name not in initrd:
                     # We add the flashlayout file creation task just after the do_image_complete for ROOTFS build
                     bb.build.addtask('do_create_flashlayout_config', 'do_build', 'do_image_complete', d)
                     # We add also the function that feeds the FLASHLAYOUT_PARTITION_* vars
@@ -255,6 +260,11 @@ def get_device(bootscheme, config, partition, partition_ori, d):
         FLASHLAYOUT_PARTITION_DEVICE = '<device0>:<dev0part_0> <dev0part_1>,<device1>:<dev1part0>'
         FLASHLAYOUT_PARTITION_DEVICE = '<device0>:default,<device1>:<dev1part0> <dev1part1>,<device2>:<dev2part0>'
         FLASHLAYOUT_PARTITION_DEVICE = '<device0>'
+    The default return for A35 boot device and M33 boot device is the default device configuration
+    A configure option is given through 'bootdev' to configure specific boot device for a35 and/or m33
+        FLASHLAYOUT_PARTITION_DEVICE = '<device0>:<dev1part0>,<device1>:<dev1part1>,<device1>:bootdev:a35 m33'
+        FLASHLAYOUT_PARTITION_DEVICE = '<device0>:default,<device1>:<dev1part0> <dev1part1>,<device0>:bootdev:a35'
+        FLASHLAYOUT_PARTITION_DEVICE = '<device0>:default,<device1>:<dev1part0> <dev1part1>,<device0>:bootdev:a35,<device1>:bootdev:m33'
     Then, to set the device for the current partition, the logic followed is:
         If the configuration provides a single device, then partition device is set
         to this value.
@@ -270,6 +280,9 @@ def get_device(bootscheme, config, partition, partition_ori, d):
     # Init default_device and device to empty string
     default_device = ''
     device = ''
+    # Init boot device for a35 and m33 to empty string
+    bootdev_a35 = ''
+    bootdev_m33 = ''
     if len(device_configs.split(',')) == 1:
         bb.debug(1, '>>> Only one device configuration set for %s partition for %s label for %s bootscheme' % (partition, config, bootscheme))
         device = device_configs.split(':')[0]
@@ -283,6 +296,17 @@ def get_device(bootscheme, config, partition, partition_ori, d):
             # Make sure configuration is correct
             if len(cfg_devc.split()) > 1:
                 bb.fatal('Only one device configuration can be specified: found %s for %s partition for %s label for %s bootscheme' % (cfg_devc, partition, config, bootscheme))
+            # Configure the boot device for a35 and m33
+            if cfg_part == 'bootdev' and len(device_config.split(':')) == 3:
+                cfg_boot = device_config.split(':')[2]
+                for b in cfg_boot.split():
+                    if b == 'a35':
+                        bootdev_a35 = cfg_devc
+                    elif b == 'm33':
+                        bootdev_m33 = cfg_devc
+                if bootdev_a35 == '' and bootdev_m33 == '':
+                    bb.warn('>>> Configuration not supported for boot device: only a35 and/or m33 (requested: %s)' % cfg_boot)
+                continue
             # Configure the default device configuration if any
             if cfg_part == 'default':
                 if default_device != '':
@@ -303,9 +327,20 @@ def get_device(bootscheme, config, partition, partition_ori, d):
             else:
                 bb.debug(1, '>>> Configure device to default device setting')
                 device = default_device
+    # If bootdev_a35 is still empty, apply default device configuration
+    if bootdev_a35 == '':
+        bb.debug(1, '>>> Configure bootdev_a35 to default device setting')
+        bootdev_a35 = default_device
+    # If bootdev_m33 is still empty, apply default device configuration
+    if bootdev_m33 == '':
+        bb.debug(1, '>>> Configure bootdev_m33 to default device setting')
+        bootdev_m33 = default_device
+
     bb.debug(1, '>>> New device configured: %s' % device)
+    bb.debug(1, '>>> New boot device a35 configured: %s' % bootdev_a35)
+    bb.debug(1, '>>> New boot device m33 configured: %s' % bootdev_m33)
     # Return the value computed
-    return (device, default_device)
+    return (device, default_device, bootdev_a35, bootdev_m33)
 
 def get_device_alias(device_type, labeltype, d):
     """
@@ -421,7 +456,7 @@ def get_offset(new_offset, copy, current_device, bootscheme, config, partition, 
     # Return offset, next offset and max offset
     return str(offset), str(next_offset), str(max_offset)
 
-def get_binaryname(labeltype, device, device_default, bootscheme, config, partition, partition_ori, d):
+def get_binaryname(labeltype, device, device_default, bootdev_a35, bootdev_m33, bootscheme, config, partition, partition_ori, d):
     """
     Return proper binary name to use in flashlayout file by applying any specific
     computation (replacement, etc)
@@ -431,6 +466,9 @@ def get_binaryname(labeltype, device, device_default, bootscheme, config, partit
     # Init binary_name for current configuration
     binary_name = expand_var('FLASHLAYOUT_PARTITION_BIN2LOAD', bootscheme, config, partition, d)
     bb.debug(1, '>>> Selected FLASHLAYOUT_PARTITION_BIN2LOAD: %s' % binary_name)
+    # Set 'bootdev_*' to alias name in lower case
+    bootdev_a35 = get_device_alias(bootdev_a35, labeltype, d).lower()
+    bootdev_m33 = get_device_alias(bootdev_m33, labeltype, d).lower()
     # Set 'device' to alias name in lower case
     if device != 'none':
         device = get_device_alias(device, labeltype, d).lower()
@@ -438,6 +476,8 @@ def get_binaryname(labeltype, device, device_default, bootscheme, config, partit
         device = get_device_alias(device_default, labeltype, d).lower()
     # Init pattern to look for with current config value
     update_patterns = '<BOOTSCHEME>;' + bootscheme
+    update_patterns += ' ' + '<BOOTDEV_A35>;' + bootdev_a35
+    update_patterns += ' ' + '<BOOTDEV_M33>;' + bootdev_m33
     update_patterns += ' ' + '<CONFIG>;' + config.replace("-","_")
     update_patterns += ' ' + '<DEVICE>;' + device
     update_patterns += ' ' + '<TYPE>;' + labeltype
@@ -505,6 +545,9 @@ python do_create_flashlayout_config() {
             else:
                 bb.fatal("Configure static file: %s not found" % fl_src)
         return
+
+    # Init flashlayout file creation
+    flashlayout_file_count = 0
 
     # Set bootschemes for partition var override configuration
     bootschemes = d.getVar('FLASHLAYOUT_BOOTSCHEME_LABELS')
@@ -579,6 +622,12 @@ python do_create_flashlayout_config() {
                         partition_nextoffset = "none"
                         # Init partition previous device to 'none'
                         partition_prevdevice = "none"
+                        # Manage flashlayout file count
+                        if bootscheme in d.getVar('FLASHLAYOUT_COUNT_LABELS'):
+                            flashlayout_file_count += 1
+                            bb.debug(1, '>>> Increase flashlayout file count for %s: %s' % (bootscheme, flashlayout_file_count))
+                        else:
+                            bb.debug(1, '>>> Do not increase flashlayout file count for %s' % bootscheme)
                         for part in partitions.split():
                             bb.debug(1, '*** Loop for partition: %s' % part)
                             # Init break and clean file switch
@@ -617,7 +666,7 @@ python do_create_flashlayout_config() {
                                 # Update partition type if needed
                                 if int(partition_copy) > 1:
                                     partition_type += '(' + partition_copy + ')'
-                                partition_device, partition_device_default = get_device(bootscheme, config, partition, part, d)
+                                partition_device, partition_device_default, boot_device_a35, boot_device_m33 = get_device(bootscheme, config, partition, part, d)
                                 # Reset partition_nextoffset to 'none' in case partition device has changed
                                 if partition_device != partition_prevdevice:
                                     partition_nextoffset = "none"
@@ -626,7 +675,10 @@ python do_create_flashlayout_config() {
                                 # Get partition offset
                                 partition_offset, partition_nextoffset, partition_maxoffset = get_offset(partition_nextoffset, partition_copy, partition_device, bootscheme, config, partition, labeltype, d)
                                 # Get binary name
-                                partition_bin2load = get_binaryname(labeltype, partition_device, partition_device_default, bootscheme, config, partition, part, d)
+                                if 'E' in partition_enable:
+                                    partition_bin2load = "none"
+                                else:
+                                    partition_bin2load = get_binaryname(labeltype, partition_device, partition_device_default, boot_device_a35, boot_device_m33, bootscheme, config, partition, part, d)
                                 # Be verbose in log file
                                 bb.debug(1, '>>> Layout inputs: %s' % fl_file.name)
                                 bb.debug(1, '>>> FLASHLAYOUT_PARTITION_ENABLE:      %s' % partition_enable)
@@ -681,7 +733,12 @@ python do_create_flashlayout_config() {
                                 fl_file.close()
                                 if os.path.exists(flashlayout_file):
                                     os.remove(flashlayout_file)
+                                # Make sure to update flashlayout file count
+                                if bootscheme in d.getVar('FLASHLAYOUT_COUNT_LABELS'):
+                                    flashlayout_file_count -= 1
+                                    bb.debug(1, '>>> Decrease flashlayout file count for %s: %s' % (bootscheme, flashlayout_file_count))
                                 break
+
                 except OSError:
                     bb.fatal('Unable to open %s' % (fl_file))
 
@@ -721,6 +778,12 @@ python do_create_flashlayout_config() {
                         os.rename(tmp_flashlayout_file, debug_flashlayout_file)
                     else:
                         os.remove(tmp_flashlayout_file)
+
+    # Provide overall flashlayout file creation status
+    if flashlayout_file_count == 0:
+        bb.fatal('No flashlayout file created: please check overall configuration and binaries availability')
+    else:
+        bb.note('>>> %s flashlayout file(s) created.' % flashlayout_file_count)
 }
 do_create_flashlayout_config[dirs] = "${FLASHLAYOUT_DESTDIR}"
 
