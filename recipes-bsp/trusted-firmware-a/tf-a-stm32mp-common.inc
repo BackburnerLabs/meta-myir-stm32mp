@@ -13,9 +13,9 @@ TFA_SRC_URI ?= "git://github.com/MYiR-Dev/myir-st-arm-trusted-firmware.git;proto
 SRC_URI = "${TFA_SRC_URI}"
 SRCREV = "78c047116eede4c985858a97410aa4dfdb2151f2"
 
-SRC_URI += " \
-    file://0001-v2.10-stm32mp-r3.patch \
-     "
+#SRC_URI += " \
+#    file://0001-v2.10-stm32mp-r3.patch \
+#     "
 
 TF_A_VERSION = "v2.10"
 TF_A_SUBVERSION = ".24"
